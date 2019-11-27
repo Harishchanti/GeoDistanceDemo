@@ -1,0 +1,18 @@
+{
+  "retailer": {
+    "properties": {
+      "id": {
+        "type": "long"
+      },
+      "name": {
+        "type": "text"
+      },
+      "mobileNumber": {
+        "type": "text"
+      },
+      "location": {
+        "type": "geo_point"
+      }
+    }
+  }
+}
