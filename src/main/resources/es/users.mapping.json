@@ -1,5 +1,5 @@
 {
-  "retailer": {
+  "user": {
     "properties": {
       "id": {
         "type": "long"

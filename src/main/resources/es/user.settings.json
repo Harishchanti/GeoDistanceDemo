@@ -1,0 +1,42 @@
+{
+	"settings": {
+		"analysis": {
+			"filter": {
+                "autocomplete_filter": { 
+                    "type":     "edge_ngram",
+                    "min_gram": 1,
+                    "max_gram": 20
+                }
+            },
+			"analyzer": {
+				"autocomplete": {
+                    "type":      "custom",
+                    "tokenizer": "standard",
+                    "filter": [
+                        "lowercase",
+                        "autocomplete_filter" 
+                    ]
+                },
+				"flat": {
+					"type" : "custom",
+        			"tokenizer" : "keyword",
+        			"filter" : "lowercase"
+				},
+				"ngram_analyzer": {
+					"tokenizer": "ngram_tokenizer"
+				}
+			},
+			"tokenizer": {
+				"ngram_tokenizer": {
+					"type": "edge_ngram",
+					"min_gram": 2,
+					"max_gram": 10,
+					"token_chars": [
+						"letter",
+						"digit"
+					]
+				}
+			}
+		}
+	}
+}

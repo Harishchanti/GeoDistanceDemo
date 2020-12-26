@@ -1,4 +1,4 @@
-package com.geo.points.distance.elasticSearchGeoDisanceDemo.service;
+package com.geo.points.distance.elasticSearchGeoDisanceDemo.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.geo.points.distance.elasticSearchGeoDisanceDemo.model.Location;
@@ -33,6 +33,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -60,7 +61,12 @@ public class ElasticSearchUtils {
     @Autowired
     private TransportClient esClient;
 
+    @Autowired
+    ResourceLoader resourceLoader;
+
     public final String MAPPING_FILE_SUFFIX = ".mapping.json";
+    String SETTINGS_FILE_SUFFIX = ".settings.json";
+
     public final String UTF_8 = "utf-8";
     public String LOCATION = "location";
 
@@ -75,7 +81,7 @@ public class ElasticSearchUtils {
 
 
     @PostConstruct
-    public void loadRetailerDetails() {
+    public void loadUserDetails() {
         bulkProcessor = BulkProcessor.builder(
                 esClient,
                 new BulkProcessor.Listener() {
@@ -119,7 +125,6 @@ public class ElasticSearchUtils {
         return usersIndex;
     }
 
-
     public boolean isAlreadyDataPublished() throws Exception {
 
         boolean indexExists = isIndexExists(usersIndex(), USER_DOC_TYPE, getUserIndex());
@@ -152,11 +157,20 @@ public class ElasticSearchUtils {
 
         if (!indexExists && createIfNotFound) {
             Resource resource = new ClassPathResource("es/" + indexFileName + MAPPING_FILE_SUFFIX);
+            Resource settingsResource = resourceLoader.getResource("classpath:es/" + indexFileName + SETTINGS_FILE_SUFFIX);
+
             if (resource.exists()) {
                 String mapping = IOUtils.toString(resource.getInputStream(), UTF_8);
-                indicesAdminClient.prepareCreate(index).addMapping(documentType, mapping, XContentType.JSON).get();
+                if (settingsResource.exists()) {
+                    String settingsJson = IOUtils.toString(settingsResource.getInputStream(), UTF_8);
+                    indicesAdminClient.prepareCreate(index).setSource(settingsJson, XContentType.JSON).addMapping(documentType, mapping, XContentType.JSON).get();
+                } else {
+                    indicesAdminClient.prepareCreate(index).addMapping(documentType, mapping, XContentType.JSON).get();
+                }
                 log.info("Index ::" + index + ":" + documentType + ":" + indexFileName + " with Mapping Created ");
                 indexExists = true;
+            } else {
+                log.warn("Not Found {} ", "es/" + indexFileName + MAPPING_FILE_SUFFIX);
             }
         }
         return indexExists;
@@ -167,39 +181,34 @@ public class ElasticSearchUtils {
     }
 
 
-    public UserDocument populateRetailerDetailsForEs(Object[] retailerObject) {
-        UserDocument UserDocument = new UserDocument();
+    public UserDocument populateUserDetailsForEs(Object[] UserObject) {
+        UserDocument userDocument = new UserDocument();
         try {
-            UserDocument.setId(Long.parseLong(retailerObject[0].toString()));
-            UserDocument.setName((String) retailerObject[1]);
-            UserDocument.setMobileNumber((String) retailerObject[2]);
-            UserDocument.setShopName((String) retailerObject[3]);
-            UserDocument.setShopType((String) retailerObject[4]);
-            UserDocument.setStreetAddress((String) retailerObject[5]);
-            UserDocument.setCity((String) retailerObject[6]);
-            UserDocument.setState((String) retailerObject[7]);
-            UserDocument.setPincode((String) retailerObject[8]);
-            UserDocument.setShopSize((String) retailerObject[9]);
-            UserDocument.setLocation(Location.builder().lat((Double) retailerObject[10])
-                    .lon((Double) retailerObject[11]).build());
-            UserDocument.setShopImageUri((String) retailerObject[12]);
-            UserDocument.setConsumerProgramEnabled((boolean) retailerObject[13]);
+            userDocument.setId(Long.parseLong(UserObject[0].toString()));
+            userDocument.setName((String) UserObject[1]);
+            userDocument.setMobileNumber((String) UserObject[2]);
+            userDocument.setStreetAddress((String) UserObject[5]);
+            userDocument.setCity((String) UserObject[6]);
+            userDocument.setState((String) UserObject[7]);
+            userDocument.setPincode((String) UserObject[8]);
+            userDocument.setLocation(Location.builder().lat((Double) UserObject[10])
+                    .lon((Double) UserObject[11]).build());
 
         } catch (Exception e) {
-            log.error("error while populating retailer details", e);
+            log.error("error while populating User details", e);
             return null;
         }
-        return UserDocument;
+        return userDocument;
     }
 
 
     public void indexDocument(UserDocument UserDocument) {
-        log.info("Updating Retailer Id : {} and Document for", UserDocument.getId(), UserDocument);
+        log.info("Updating User Id : {} and Document for", UserDocument.getId(), UserDocument);
         bulkProcessor.add((new IndexRequest(usersIndex()).type(USER_DOC_TYPE.trim()).id(String.valueOf(UserDocument.getId())).source(gson.toJson(UserDocument), XContentType.JSON)));
     }
 
 
-    public List<UserDocument> getServicableRetailer(UserServiceabilityRequest UserServiceabilityRequest) {
+    public List<UserDocument> getNearByUserDetails(UserServiceabilityRequest UserServiceabilityRequest) {
         BoolQueryBuilder qb = boolQuery()
                 .minimumShouldMatch(1)
                 .filter(geoDistanceQuery(LOCATION)
@@ -218,7 +227,7 @@ public class ElasticSearchUtils {
                 .setFrom(calculateFromForProduct(page))
                 .setSize(page.getSize());
 
-        log.info(" Retailer Servicability ES Query : {}", srb.toString());
+        log.info(" Near by User  ES Query : {}", srb.toString());
         return parseQueryresponse(srb.execute().actionGet());
     }
 
@@ -236,7 +245,7 @@ public class ElasticSearchUtils {
                 UserDocumentList.add(ud);
             }
         } catch (Exception e) {
-            log.error("Error while parsing the Retailer Document ", e);
+            log.error("Error while parsing the User Document ", e);
         }
         return UserDocumentList;
     }

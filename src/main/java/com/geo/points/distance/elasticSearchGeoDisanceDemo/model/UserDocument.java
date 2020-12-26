@@ -21,15 +21,10 @@ public class UserDocument implements Serializable {
     Long id;
     String name;
     String mobileNumber;
-    String shopName;
-    String shopType;
     String streetAddress;
     String city;
     String state;
     String pincode;
-    String shopSize;
-    String shopImageUri;
-    Boolean consumerProgramEnabled;
     Location location;
     Double distance;
 }
